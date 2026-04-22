@@ -4,13 +4,12 @@ const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// 🔗 conexão
+// conexão
 const db = mysql.createConnection({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -18,7 +17,7 @@ const db = mysql.createConnection({
   database: process.env.DB_NAME
 });
 
-// 🔐 middleware JWT
+// middleware JWT
 function auth(req, res, next) {
   const header = req.headers.authorization;
 
@@ -36,7 +35,7 @@ function auth(req, res, next) {
 }
 
 // ==========================
-// 🔐 LOGIN
+// 🔐 LOGIN SIMPLES (sem bcrypt por enquanto)
 // ==========================
 app.post('/login', (req, res) => {
   const { usuario, senha } = req.body;
@@ -44,7 +43,7 @@ app.post('/login', (req, res) => {
   db.query(
     'SELECT * FROM cadastro WHERE matricula = ?',
     [usuario],
-    async (err, result) => {
+    (err, result) => {
 
       if (err) return res.status(500).send(err);
 
@@ -54,17 +53,13 @@ app.post('/login', (req, res) => {
 
       const user = result[0];
 
-      // 🔥 aqui você muda: user.senha → user.pwdf
-      const senhaValida = senha === user.pwd;
-
-      if (!senhaValida) {
+      // 🔥 comparação simples (porque sua senha não está criptografada)
+      if (senha !== user.pwd) {
         return res.status(401).json({ error: 'Senha inválida' });
       }
 
       const token = jwt.sign(
-        {
-          matricula: user.matricula
-        },
+        { matricula: user.matricula },
         process.env.JWT_SECRET,
         { expiresIn: '1h' }
       );
@@ -73,71 +68,16 @@ app.post('/login', (req, res) => {
     }
   );
 });
-// ==========================
-// 🔒 CRUD PROTEGIDO
-// ==========================
 
-// LISTAR
+// ==========================
+// 🔒 LISTAR (CORRIGIDO)
+// ==========================
 app.get('/cadastro', auth, (req, res) => {
-  db.query('SELECT matricula, nome FROM cadastro', (err, result) => {
-    if (err) return res.status(500).send(err);
-    res.json(result);
-  });
-});
-
-// BUSCAR
-app.get('/cadastro/:id', auth, (req, res) => {
-  const { id } = req.params;
-
   db.query(
-    'SELECT matricula, nome FROM cadastro WHERE matricula = ?',
-    [id],
+    'SELECT matricula, nome, funcao, unidade, foto FROM cadastro',
     (err, result) => {
       if (err) return res.status(500).send(err);
-      res.json(result[0] || {});
-    }
-  );
-});
-
-// INSERT
-app.post('/cadastro', auth, (req, res) => {
-  const { nome } = req.body;
-
-  db.query(
-    'INSERT INTO cadastro (nome) VALUES (?)',
-    [nome],
-    (err, result) => {
-      if (err) return res.status(500).send(err);
-      res.json({ message: 'Criado', id: result.insertId });
-    }
-  );
-});
-
-// UPDATE
-app.put('/cadastro/:id', auth, (req, res) => {
-  const { id } = req.params;
-  const { nome } = req.body;
-
-  db.query(
-    'UPDATE cadastro SET nome = ? WHERE matricula = ?',
-    [nome, id],
-    (err) => {
-      if (err) return res.status(500).send(err);
-      res.json({ message: 'Atualizado' });
-    }
-  );
-});
-
-// DELETE
-app.delete('/cadastro/:id', auth, (req, res) => {
-  const { id } = req.params;
-
-  db.query(
-    'DELETE FROM cadastro WHERE matricula = ?',
-    [id],
-    (err) => {
-      if (err) return res.status(500).send(err);
-      res.json({ message: 'Deletado' });
+      res.json(result);
     }
   );
 });
