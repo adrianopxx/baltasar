@@ -1,0 +1,11 @@
+<script>
+// 🔐 pega token
+const token = localStorage.getItem('token');
+
+// 🚫 bloqueia acesso sem login
+if (!token) {
+  window.location.href = 'login.html';
+}
+</script>
+
+<H1>OLAAAAAA</H1>
